@@ -109,7 +109,7 @@ npm run test:watch
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/ABHIIEEE/everything-image-studio.git
+git clone https://github.com/abhieee-java/everything-image-studio.git
 cd everything-image-studio
 
 # 2. Install dependencies

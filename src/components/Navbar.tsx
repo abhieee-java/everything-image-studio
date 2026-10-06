@@ -77,7 +77,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
 
           <a
-            href="https://github.com/ABHIIEEE/everything-image-studio"
+            href="https://github.com/abhieee-java/everything-image-studio"
             target="_blank"
             rel="noopener noreferrer"
             className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
