@@ -10,6 +10,26 @@ if (typeof window !== 'undefined') {
   window.URL.revokeObjectURL = vi.fn();
 }
 
+// Mock Worker for jsdom test runner
+if (typeof globalThis.Worker === 'undefined') {
+  class MockWorker {
+    url: string;
+    onmessage: ((event: MessageEvent) => void) | null = null;
+    onerror: ((event: ErrorEvent) => void) | null = null;
+    constructor(stringUrl: string | URL) {
+      this.url = stringUrl.toString();
+    }
+    postMessage(_data: any) {}
+    terminate() {}
+    addEventListener(_event: string, _handler: any) {}
+    removeEventListener(_event: string, _handler: any) {}
+  }
+  globalThis.Worker = MockWorker as any;
+  if (typeof window !== 'undefined') {
+    (window as any).Worker = MockWorker;
+  }
+}
+
 // Mock HTMLCanvasElement.prototype.getContext
 if (typeof HTMLCanvasElement !== 'undefined') {
   HTMLCanvasElement.prototype.getContext = vi.fn(function (this: HTMLCanvasElement, contextId: string) {
@@ -29,6 +49,8 @@ if (typeof HTMLCanvasElement !== 'undefined') {
         strokeRect: vi.fn(),
         beginPath: vi.fn(),
         closePath: vi.fn(),
+        moveTo: vi.fn(),
+        lineTo: vi.fn(),
         arc: vi.fn(),
         fill: vi.fn(),
         stroke: vi.fn(),

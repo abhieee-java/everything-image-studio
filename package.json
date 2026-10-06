@@ -12,15 +12,19 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@imgly/background-removal": "^1.7.0",
     "browser-image-compression": "^2.0.2",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
     "file-saver": "^2.0.5",
+    "heic2any": "^0.0.4",
+    "jspdf": "^4.2.1",
     "jszip": "^3.10.2",
     "lucide-react": "^1.52.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "tailwind-merge": "^3.7.0"
+    "tailwind-merge": "^3.7.0",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.1",

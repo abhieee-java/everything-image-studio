@@ -1,114 +1,146 @@
-# Everything Image Studio 🎨⚡
+# PureCut AI — World-Class Client-Side Background Remover ✂️⚡
 
-> **High-Performance, Purely Client-Side Image Manipulation & Processing Platform**
+> **«No Upload. No Limit. No Watermark. Full Quality.»**  
+> Remove backgrounds instantly, privately, and at full resolution. Everything happens directly on your device.
 
-![Everything Image Studio Banner](https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80)
+![PureCut AI Banner](https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80)
 
-[![Tests Passing](https://img.shields.io/badge/tests-37%2F37%20passing-teal.svg)](#testing)
+[![Tests Passing](https://img.shields.io/badge/tests-passing-teal.svg)](#testing)
 [![Client-Side Privacy](https://img.shields.io/badge/privacy-100%25%20client--side-emerald.svg)](#privacy--architecture)
-[![Tech Stack](https://img.shields.io/badge/stack-React%2019%20%7C%20Vite%20%7C%20Tailwind%20CSS-blue.svg)](#tech-stack)
+[![Tech Stack](https://img.shields.io/badge/stack-React%2019%20%7C%20Vite%20%7C%20Tailwind%20CSS%20%7C%20ISNet%20WASM-blue.svg)](#tech-stack)
 
 ---
 
-## 🌟 Overview
+## 🌟 Primary Product Promise
 
-**Everything Image Studio** is a browser-native image editing and optimization suite designed for performance, flexibility, and absolute privacy. Every image is processed directly inside your browser's memory using HTML5 `<canvas>` APIs and multi-threaded Web Workers.
+PureCut AI delivers production-grade, flagship background removal without the predatory tricks of cloud tools:
 
-**Zero server uploads. Zero cloud compute. Zero privacy leaks.**
+- 🔒 **100% Client-Side Processing**: Neural networks run locally inside your browser via WebAssembly & WebGPU. Zero bytes leave your device.
+- ⚡ **Zero Latency**: No waiting for server queues or file uploads.
+- 💎 **Full Native Resolution**: Preserves full 4K, 8K, and high-megapixel dimensions without artificial downscaling.
+- 🆓 **Completely Free & Unlimited**: No paywalls, no forced signups, no artificial credit systems.
+- ✨ **No Watermark**: Clean, professional exports for personal and commercial projects.
+- 🛡️ **EXIF Metadata Privacy Shield**: Automatically strips embedded GPS locations and camera serial numbers before download.
 
 ---
 
-## 🚀 Core Features & Modules
+## 🚀 Core Modules & Features
 
-### 1. ⚡ The Compressor
-- **Perceptual Size Reduction**: Intelligently compresses images using `browser-image-compression`.
-- **Dynamic Before & After Estimator**: Real-time side-by-side file size feedback and reduction percentages.
-- **Multithreaded Web Workers**: Non-blocking background worker threads ensure ultra-smooth 60fps UI.
-- **Interactive Split Slider**: Drag slider to compare compression quality against original image.
+### 1. ✂️ The Background Remover (Flagship)
+- **Neural ISNet Architecture**: High-accuracy salient object detection running directly in the browser via Web Workers.
+- **Smart AI Modes**:
+  - *Auto*: General-purpose high-accuracy neural segmentation.
+  - *Portrait*: Soft alpha feathering optimized for human hair and fine edges.
+  - *Product*: Crisp, high-contrast outlines for e-commerce catalog objects.
+  - *Hair & Fur*: Sub-pixel boundary refinement for complex contours.
+- **Dynamic Laser Scanline Experience**: Beautiful holographic scanning beam visualizing subject segmentation in real time.
+- **Interactive Split Slider**: Draggable comparison divider with mouse, touch gesture, and keyboard arrow controls.
+- **View Modes**: Split Slider, Side-by-Side, Processed Cutout, and Original Image.
+- **Checkerboard Transparency**: High-contrast dark & light checkerboard pattern with explicit «Transparent» indicator.
 
-### 2. 🔄 The Converter
-- **Cross-Format Conversion**: Instant cross-conversion between **JPG**, **PNG**, **WebP**, and **AVIF**.
-- **Lossy / Lossless Quality Toggles**: Fine-tuned control over output bitrate.
-- **Matte & Background Fill**: Custom background color selector for JPEG transparent conversions.
-- **Bulk Batch Converter**: Convert multiple files in parallel.
+### 2. 🎨 Studio Background Replacement
+- **Transparent**: Pure 32-bit alpha PNG output.
+- **Solid Colors**: Instant white, black, neutral studio gray, vibrant accent presets, plus a full RGB hex color picker.
+- **Gradients**: Electric Studio, Sunset Glow, Ocean Mist, Cyber Neon, Soft Minimal, and Midnight Deep presets.
+- **Blur Original**: Real-time Gaussian blur slider (2–40px) blurring the background scenery behind the subject.
+- **Custom Image**: Upload any replacement background graphic (studio backdrop, landscape, texture).
 
-### 3. 📐 The Resizer
-- **Aspect Ratio Locking**: Seamless lock/unlock toggle with proportional dimension calculation.
-- **Precision Pixel Inputs**: Custom pixel dimensions for exact width and height specifications.
-- **Scale Percentage Presets**: 25%, 50%, 75%, 100%, 150%, 200%, or granular slider scale.
-- **Social & Display Presets**:
-  - *Instagram Square (1080×1080)*
-  - *Instagram Story / Reel (1080×1920)*
-  - *Twitter / X Banner (1500×500)*
-  - *YouTube HD Thumbnail (1280×720)*
-  - *Full HD Display (1920×1080)*
-  - *Avatar / Profile (500×500)*
+### 3. 🖌️ Edge Refinement (Interactive Brush)
+- **Erase (E)**: Mask out background remnants with sub-pixel feathering.
+- **Restore (R)**: Paint back parts of the original image with brush opacity control.
+- **Brush Controls**: Granular size slider (5–100px) and hardness/feather slider (10–100%) with a live circular cursor preview.
+- **Undo / Redo Stack**: 20-level history stack via `Ctrl + Z` / `Ctrl + Shift + Z` and on-screen buttons.
 
-### 4. 🏷️ The Watermarker
-- **Custom Text Watermarks**: Custom typography (Sans, Mono, Serif, Impact), font sizing, font weight, and color palette.
-- **Logo / Stamp Overlays**: Upload secondary PNG transparent graphics as stamps.
-- **9-Point Matrix Positioning**: Instant alignment to Top-Left, Center, Bottom-Right, etc.
-- **Tiled Repeat Watermarks**: Diagonal repeating patterns for document and photography copyright protection.
-- **Opacity & Rotation**: Variable alpha opacity (0–100%) and angular rotation (-90° to +90°).
+### 4. 📐 Smart Crop & Social Presets
+- **Auto Crop**: Alpha-channel subject bounds detection with *Tight (5% padding)*, *Balanced (15% padding)*, and *Canvas* modes.
+- **Aspect Presets**:
+  - *E-Commerce (1:1)*: Clean white studio background + balanced subject padding.
+  - *Square (1:1)*: Instagram posts.
+  - *Portrait (4:5)*: Social feeds.
+  - *Story (9:16)*: Reels, Stories, TikTok.
+  - *Banner (16:9)*: YouTube thumbnails.
+  - *Avatar Circle*: Circular-masked profile pictures.
+- **Transforms**: 90° clockwise rotation, Horizontal Flip, Vertical Flip.
 
-### 5. 🎛️ Enhancements & Adjustments
-- **Tone Controls**: Granular Brightness, Contrast, and Saturation sliders.
-- **Artistic Filters**: Instant Grayscale, Sepia, and Invert filters.
-- **Transformations**: 90° clockwise rotation, Horizontal Flip, and Vertical Flip.
+### 5. 📦 Batch Processing
+- Select or drop up to 10–20 images simultaneously.
+- Thumbnail status queue with real-time progress indicators.
+- One-click client-side ZIP generation with `JSZip`.
 
-### 6. 📦 Batch Processor & JSZip Downloader
-- Process multiple uploaded images simultaneously with active tool presets.
-- Real-time progress bar with file-by-file tracking.
-- One-click ZIP generation and download via `JSZip` and `file-saver`.
-- Confetti celebratory animations on export.
+### 6. 🗄️ IndexedDB Local History
+- Saves recent edits safely in browser memory (last 10 items).
+- Retrieve, reload into the workspace, or delete with zero server communication.
+- "Clear History" button for immediate wipe.
 
-### 7. 📥 Universal Drag & Drop & Clipboard Paste
-- Drag-and-drop images anywhere onto the window.
-- Global `Ctrl + V` clipboard listener to paste screenshots directly from your clipboard.
-- Preloaded high-resolution sample images for instant evaluation.
+### 7. ⚡ Image Studio Suite (Companion Tools)
+- **The Compressor**: Perceptual size reduction with real-time before/after byte savings.
+- **The Converter**: High-speed cross-format conversion between JPG, PNG, WebP, and AVIF.
+- **The Resizer**: Aspect-ratio lock with custom dimensions and scaling percentages.
+- **The Watermarker**: Custom text & logo overlays with 9-point grid alignment and tiled repeat patterns.
+- **Enhance & Adjust**: Tone sliders (Brightness, Contrast, Saturation) and artistic filters.
+
+---
+
+## ⌨️ Keyboard Shortcuts
+
+| Shortcut | Action |
+| --- | --- |
+| `U` | Open image upload dialog |
+| `E` | Switch to Erase brush |
+| `R` | Switch to Restore brush |
+| `B` | Toggle Before/After comparison view |
+| `Z` | Toggle Zoom (Fit / 100%) |
+| `Ctrl + Z` | Undo edge brush stroke |
+| `Ctrl + Shift + Z` | Redo edge brush stroke |
+| `←` / `→` | Adjust comparison slider divider |
+| `Esc` | Close drawers and modal dialogs |
+| `?` | Show Keyboard Shortcuts panel |
+
+---
+
+## 🔒 Privacy & Architecture Guarantee
+
+```mermaid
+flowchart LR
+    User[User Device / Browser] -->|Drag & Drop / Paste| RAM[In-Memory Canvas / Blob]
+    RAM -->|ONNX ISNet WebAssembly| Engine[Local Neural Engine]
+    Engine -->|Interactive Editor| Canvas[2D Composite Renderer]
+    Canvas -->|Strip EXIF Metadata| Export[Full-Res Local Download]
+    Export -.->|Zero Cloud Uploads| Cloud[Zero Server Cost / Total Privacy]
+```
 
 ---
 
 ## 🛠️ Tech Stack
 
 - **Framework:** [React 19](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
-- **Bundler:** [Vite](https://vitejs.dev/)
-- **Styling:** [Tailwind CSS](https://tailwindcss.com/) (Dark-mode modern glassmorphism UI)
+- **Bundler:** [Vite 8](https://vitejs.dev/) + Rolldown
+- **Styling:** [Tailwind CSS](https://tailwindcss.com/)
 - **Icons:** [Lucide React](https://lucide.dev/)
-- **Compression & Processing:** `browser-image-compression` + HTML5 Canvas 2D Context API
-- **Batch Export:** `jszip` + `file-saver`
+- **AI Runtime:** `@imgly/background-removal` (ISNet ONNX WebAssembly & WebGPU)
+- **Local Storage:** HTML5 Canvas, Web Workers, IndexedDB, Cache API
 - **Testing:** [Vitest](https://vitest.dev/) + [React Testing Library](https://testing-library.com/)
 
 ---
 
-## 🧪 Testing Protocol
+## 🧪 Testing & Verification
 
-The codebase is tested across unit utilities and component interactions with **100% test pass rate**:
+Run the full automated test suite:
 
 ```bash
-# Run test suite
+# Run tests
 npm run test
 
-# Run tests in watch mode
-npm run test:watch
+# Build for production
+npm run build
 ```
-
-### Test Suites Included:
-- `imageUtils.test.ts`: 26 pure unit tests covering formatting, byte calculations, aspect ratios, watermark coordinate placement, CSS filter chaining, sample image generation, and ZIP serialization.
-- `components.test.tsx`: 11 component test suites covering Navbar, Toolbar, DropZone, Compressor, Converter, Resizer, Watermarker, Adjustments, Batch Export Modal, and Preview Canvas.
 
 ---
 
-## 💻 Local Setup & Development
-
-### Prerequisites
-- Node.js 18+ or Node.js 22+
-- npm 9+ or pnpm / yarn
-
-### Installation
+## 💻 Local Setup
 
 ```bash
-# 1. Clone the repository
+# 1. Clone repository
 git clone https://github.com/abhieee-java/everything-image-studio.git
 cd everything-image-studio
 
@@ -118,26 +150,12 @@ npm install
 # 3. Start development server
 npm run dev
 
-# 4. Production build
-npm run build
+# 4. Preview production build
+npm run preview
 ```
-
----
-
-## 🔒 Privacy & Architecture
-
-```mermaid
-flowchart LR
-    User[User Device / Browser] -->|Drag & Drop / Paste| Memory[In-Memory Blob Store]
-    Memory -->|Canvas 2D / WebWorker| Engine[Client Processing Engine]
-    Engine -->|Browser Download / ZIP| Output[Optimized Local Output]
-    Output -.->|No Cloud Servers| Cloud[Zero Server Cost / Zero Latency]
-```
-
-All images remain entirely in browser RAM using Object URLs and Blob streams. No data is ever transmitted to an external server.
 
 ---
 
 ## 📄 License
 
-MIT License © 2026 ABHIIEEE. Free and open source for personal and commercial use.
+MIT License © 2026. Free and open source for personal and commercial use.

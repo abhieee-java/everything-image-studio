@@ -2,6 +2,7 @@ import imageCompression from 'browser-image-compression';
 import JSZip from 'jszip';
 import type {
   AdjustmentSettings,
+  BackgroundRemovalSettings,
   CompressionSettings,
   ConversionSettings,
   ImageDataItem,
@@ -12,6 +13,7 @@ import type {
   WatermarkPosition,
   WatermarkSettings,
 } from '../types';
+import { transcodeRawOrHeicIfNeeded, formatOutputForExport } from './rawHeicHandler';
 
 /**
  * Format raw byte size into human readable string (KB, MB, GB)
@@ -206,9 +208,11 @@ export function loadImageElement(src: string): Promise<HTMLImageElement> {
 }
 
 /**
- * Read File object and extract dimensions, size, preview URL
+ * Read File object and extract dimensions, size, preview URL,
+ * silently transcoding HEIC and RAW/ProRAW files to full-quality standard format.
  */
-export async function readImageFileMetadata(file: File): Promise<ImageDataItem> {
+export async function readImageFileMetadata(rawFile: File): Promise<ImageDataItem> {
+  const { file, originalFormat, isTranscoded } = await transcodeRawOrHeicIfNeeded(rawFile);
   const previewUrl = URL.createObjectURL(file);
   const img = await loadImageElement(previewUrl);
 
@@ -216,15 +220,17 @@ export async function readImageFileMetadata(file: File): Promise<ImageDataItem> 
   const height = img.naturalHeight || img.height || 600;
 
   return {
-    id: `${file.name}-${file.lastModified}-${Math.random().toString(36).substring(2, 9)}`,
+    id: `${rawFile.name}-${rawFile.lastModified}-${Math.random().toString(36).substring(2, 9)}`,
     file,
-    name: file.name,
-    originalSize: file.size,
+    name: rawFile.name,
+    originalSize: rawFile.size,
     originalWidth: width,
     originalHeight: height,
-    originalType: file.type || 'image/png',
+    originalType: file.type || rawFile.type || 'image/png',
     previewUrl,
     aspectRatio: width / height,
+    originalFormatExtension: originalFormat,
+    isHeicOrRaw: isTranscoded,
   };
 }
 
@@ -403,12 +409,44 @@ export async function processImage(
     resize: ResizeSettings;
     watermark: WatermarkSettings;
     adjustments: AdjustmentSettings;
+    bgRemoval?: BackgroundRemovalSettings;
+    onBgProgress?: (state: any) => void;
     watermarkImgElement?: HTMLImageElement | null;
   }
 ): Promise<ProcessedResult> {
   const startTime = performance.now();
   const originalExt = item.name.substring(item.name.lastIndexOf('.'));
   const baseName = item.name.substring(0, item.name.lastIndexOf('.')) || item.name;
+
+  // 0. Dedicated Background Removal pipeline
+  if (options.tab === 'bg-remover') {
+    const { processBackgroundRemoval } = await import('./backgroundRemoval');
+    const bgResult = await processBackgroundRemoval(
+      item.file,
+      options.bgRemoval || { smartMode: 'auto', removeMetadata: true },
+      options.onBgProgress
+    );
+    const dataUrl = URL.createObjectURL(bgResult.blob);
+    const img = await loadImageElement(dataUrl);
+
+    const { exportBlob, exportFilename, mimeType } = formatOutputForExport(
+      bgResult.blob,
+      item.name,
+      item.originalFormatExtension || null
+    );
+
+    return {
+      id: item.id,
+      blob: exportBlob,
+      dataUrl,
+      size: exportBlob.size,
+      width: img.naturalWidth || item.originalWidth,
+      height: img.naturalHeight || item.originalHeight,
+      format: mimeType,
+      filename: exportFilename,
+      processingTimeMs: bgResult.processingTimeMs,
+    };
+  }
 
   // 1. Dedicated compression module (using browser-image-compression with canvas fallback)
   if (options.tab === 'compress') {

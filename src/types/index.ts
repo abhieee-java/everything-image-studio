@@ -1,6 +1,14 @@
 export type ImageFormat = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/avif';
 
-export type ToolTab = 'compress' | 'convert' | 'resize' | 'watermark' | 'adjust';
+export type ToolTab = 'ocr' | 'bg-remover' | 'compress' | 'convert' | 'resize' | 'watermark' | 'adjust';
+
+export * from './ocr';
+
+export type SmartMode = 'auto' | 'portrait' | 'product' | 'hair-fur';
+
+export type BackgroundType = 'transparent' | 'solid' | 'gradient' | 'blur' | 'image';
+
+export type BrushMode = 'erase' | 'restore' | 'none';
 
 export type WatermarkPosition =
   | 'top-left'
@@ -24,6 +32,27 @@ export interface ImageDataItem {
   originalType: string;
   previewUrl: string;
   aspectRatio: number;
+  originalFormatExtension?: string | null;
+  isHeicOrRaw?: boolean;
+}
+
+export interface BackgroundRemovalSettings {
+  smartMode: SmartMode;
+  removeMetadata: boolean;
+  bgType?: BackgroundType;
+  bgColor?: string;
+  bgGradient?: string;
+  bgBlur?: number; // 0 to 30
+  bgImageUrl?: string | null;
+  autoCrop?: 'original' | 'tight' | 'balanced';
+  aspectPreset?: 'free' | '1:1' | '4:5' | '9:16' | '16:9' | 'profile' | 'product-white';
+}
+
+export interface BrushSettings {
+  mode: BrushMode;
+  size: number;
+  hardness: number;
+  opacity: number;
 }
 
 export interface CompressionSettings {
@@ -93,4 +122,15 @@ export interface BatchProgress {
   current: number;
   currentFilename: string;
   isProcessing: boolean;
+}
+
+export interface HistoryItem {
+  id: string;
+  name: string;
+  timestamp: number;
+  thumbnail: string;
+  processedBlob: Blob;
+  width: number;
+  height: number;
+  size: number;
 }
