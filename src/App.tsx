@@ -12,9 +12,6 @@ import type {
   ResizeSettings,
   ToolTab,
   WatermarkSettings,
-  OcrMode,
-  OcrPreprocessingSettings,
-  OcrResultData,
 } from './types';
 import {
   createZipArchive,
@@ -26,24 +23,18 @@ import {
 import {
   type ProgressState,
   type SubjectBoundingBox,
+  detectSubjectBounds,
 } from './utils/backgroundRemoval';
 import { MaskEditorEngine } from './utils/maskEditor';
 import { exportCompositeBlob } from './utils/compositeRenderer';
 import {
   loadHistoryItems,
+  saveHistoryItem,
   deleteHistoryItem,
   clearAllHistory,
 } from './utils/historyStorage';
 import { getInitialTheme, applyTheme, type ThemeMode } from './utils/theme';
 import { isHeicOrRawFile, formatOutputForExport } from './utils/rawHeicHandler';
-
-// OCR Engine & Helpers
-import {
-  DEFAULT_PREPROCESSING_SETTINGS,
-  preprocessCanvasForOcr,
-} from './utils/ocrPreprocessing';
-import { recognizeImage, terminateOcrWorker } from './utils/ocrEngine';
-import { getRouteConfig, OCR_ROUTES } from './utils/ocrRoutes';
 
 // Components
 import { Navbar } from './components/Navbar';
@@ -62,19 +53,13 @@ import { BatchExportModal } from './components/BatchExportModal';
 import { ContentSections } from './components/ContentSections';
 import { HistoryDrawer } from './components/HistoryDrawer';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
-import { Footer } from './components/Footer';
-
-// OCR Dedicated Components
-import { OcrTool } from './components/OcrTool';
-import { OcrResultWorkspace } from './components/OcrResultWorkspace';
-import { OcrBatchModal } from './components/OcrBatchModal';
 import { CameraModal } from './components/CameraModal';
-import { OcrSeoContent } from './components/OcrSeoContent';
+import { Footer } from './components/Footer';
 
 import { saveAs } from 'file-saver';
 import confetti from 'canvas-confetti';
 
-export function App() {
+export default function App() {
   // Theme state
   const [theme, setTheme] = useState<ThemeMode>(getInitialTheme);
 
@@ -86,52 +71,14 @@ export function App() {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
   };
 
-  // Routing State
-  const [currentPath, setCurrentPath] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return window.location.pathname.toLowerCase().replace(/\/+$/, '') || '/';
-    }
-    return '/';
-  });
-
-  const routeConfig = getRouteConfig(currentPath);
-
-  // Active Tool Tab
-  const [activeTab, setActiveTab] = useState<ToolTab>(() => {
-    // If route matches an OCR route or root, default to OCR
-    const path = typeof window !== 'undefined' ? window.location.pathname.toLowerCase() : '/';
-    if (path === '/' || path in OCR_ROUTES) {
-      return 'ocr';
-    }
-    if (path.includes('bg-remover')) return 'bg-remover';
-    if (path.includes('compress')) return 'compress';
-    if (path.includes('convert')) return 'convert';
-    if (path.includes('resize')) return 'resize';
-    if (path.includes('watermark')) return 'watermark';
-    if (path.includes('adjust')) return 'adjust';
-    return 'ocr';
-  });
+  // Active Tool Tab (Default is flagship Background Remover)
+  const [activeTab, setActiveTab] = useState<ToolTab>('bg-remover');
 
   // Image Store
   const [images, setImages] = useState<ImageDataItem[]>([]);
   const [activeImageId, setActiveImageId] = useState<string>('');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [processedResult, setProcessedResult] = useState<ProcessedResult | null>(null);
-
-  // OCR Specialized State
-  const [selectedLanguage, setSelectedLanguage] = useState<string>(routeConfig.defaultLanguage || 'eng');
-  const [selectedMode, setSelectedMode] = useState<OcrMode>(routeConfig.defaultMode || 'standard');
-  const [ocrPreprocessing, setOcrPreprocessing] = useState<OcrPreprocessingSettings>(DEFAULT_PREPROCESSING_SETTINGS);
-  const [ocrResultsByImageId, setOcrResultsByImageId] = useState<Record<string, OcrResultData>>({});
-  const [preprocessedCanvasesByImageId, setPreprocessedCanvasesByImageId] = useState<Record<string, HTMLCanvasElement>>({});
-  const [isOcrProcessing, setIsOcrProcessing] = useState<boolean>(false);
-  const [ocrProgress, setOcrProgress] = useState<{ percent: number; message: string }>({
-    percent: 0,
-    message: '',
-  });
-  const [isCameraOpen, setIsCameraOpen] = useState<boolean>(false);
-  const [isOcrBatchOpen, setIsOcrBatchOpen] = useState<boolean>(false);
-  const currentOcrJobId = useRef<string | null>(null);
 
   // Background Removal Progress state
   const [progressState, setProgressState] = useState<ProgressState>({
@@ -178,24 +125,40 @@ export function App() {
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
 
-  // Keyboard Shortcuts Modal State
+  // Modal Dialogs
+  const [isBatchOpen, setIsBatchOpen] = useState<boolean>(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState<boolean>(false);
+  const [isCameraOpen, setIsCameraOpen] = useState<boolean>(false);
 
-  // Tool Settings
+  // Toast Feedback State
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Batch Processing State
+  const [batchProgress, setBatchProgress] = useState<BatchProgress>({
+    total: 0,
+    current: 0,
+    currentFilename: '',
+    isProcessing: false,
+  });
+  const [batchResults, setBatchResults] = useState<ProcessedResult[]>([]);
+  const [zipBlob, setZipBlob] = useState<Blob | null>(null);
+
+  // Compression, Conversion, Resize, Watermark, Adjust Settings
   const [compressionSettings, setCompressionSettings] = useState<CompressionSettings>({
-    quality: 0.75,
+    quality: 0.8,
     useWebWorker: true,
   });
 
   const [conversionSettings, setConversionSettings] = useState<ConversionSettings>({
-    targetFormat: 'image/webp',
-    quality: 0.85,
+    targetFormat: 'image/png',
+    quality: 0.92,
     backgroundColor: '#FFFFFF',
   });
 
   const [resizeSettings, setResizeSettings] = useState<ResizeSettings>({
-    width: 1200,
-    height: 800,
+    width: 1920,
+    height: 1080,
     maintainAspectRatio: true,
     scalePercent: 100,
     resampleMode: 'canvas',
@@ -203,16 +166,15 @@ export function App() {
 
   const [watermarkSettings, setWatermarkSettings] = useState<WatermarkSettings>({
     type: 'text',
-    text: 'Everything Studio',
-    fontFamily: 'Inter, system-ui, sans-serif',
+    text: 'PureCut AI',
+    fontFamily: 'Inter',
     fontSize: 36,
-    fontWeight: '700',
+    fontWeight: '600',
     color: '#FFFFFF',
-    opacity: 0.75,
+    opacity: 0.7,
     position: 'bottom-right',
     rotation: 0,
     padding: 24,
-    watermarkImageScale: 25,
   });
 
   const [adjustmentSettings, setAdjustmentSettings] = useState<AdjustmentSettings>({
@@ -228,160 +190,30 @@ export function App() {
     flipVertical: false,
   });
 
-  // Batch Export State
-  const [isBatchOpen, setIsBatchOpen] = useState<boolean>(false);
-  const [batchProgress, setBatchProgress] = useState<BatchProgress>({
-    total: 0,
-    current: 0,
-    currentFilename: '',
-    isProcessing: false,
-  });
-  const [batchResults, setBatchResults] = useState<ProcessedResult[]>([]);
-  const [zipBlob, setZipBlob] = useState<Blob | null>(null);
-
-  // Toast feedback
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
-  };
-
-  // Active Image Object
   const activeImage = images.find((img) => img.id === activeImageId) || images[0] || null;
 
-  // Active OCR Data derived per selected image
-  const ocrResult = (activeImage ? ocrResultsByImageId[activeImage.id] : null) || null;
-  const preprocessedCanvas = (activeImage ? preprocessedCanvasesByImageId[activeImage.id] : null) || null;
-
-  // Load History on Mount
-  useEffect(() => {
-    loadHistoryItems().then(setHistoryItems);
+  // Show Toast Message helper
+  const showToast = useCallback((msg: string) => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    setToastMessage(msg);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToastMessage(null);
+    }, 3200);
   }, []);
 
-  // Sync Dynamic Route Metadata & Schema.org JSON-LD
+  // Load history from IndexedDB on startup
   useEffect(() => {
-    if (typeof document === 'undefined') return;
-
-    // Title
-    document.title = routeConfig.title;
-
-    // Meta Description
-    let metaDesc = document.querySelector('meta[name="description"]');
-    if (!metaDesc) {
-      metaDesc = document.createElement('meta');
-      metaDesc.setAttribute('name', 'description');
-      document.head.appendChild(metaDesc);
-    }
-    metaDesc.setAttribute('content', routeConfig.metaDescription);
-
-    // Canonical
-    let canonical = document.querySelector('link[rel="canonical"]');
-    if (!canonical) {
-      canonical = document.createElement('link');
-      canonical.setAttribute('rel', 'canonical');
-      document.head.appendChild(canonical);
-    }
-    canonical.setAttribute('href', routeConfig.canonicalPath);
-
-    // OpenGraph Title & Description
-    const ogTitle = document.querySelector('meta[property="og:title"]');
-    if (ogTitle) ogTitle.setAttribute('content', routeConfig.title);
-    const ogDesc = document.querySelector('meta[property="og:description"]');
-    if (ogDesc) ogDesc.setAttribute('content', routeConfig.metaDescription);
-    const ogUrl = document.querySelector('meta[property="og:url"]');
-    if (ogUrl) ogUrl.setAttribute('content', routeConfig.canonicalPath);
-
-    // Update JSON-LD structured data
-    let schemaScript = document.getElementById('route-schema-jsonld') as HTMLScriptElement;
-    if (!schemaScript) {
-      schemaScript = document.createElement('script');
-      schemaScript.id = 'route-schema-jsonld';
-      schemaScript.type = 'application/ld+json';
-      document.head.appendChild(schemaScript);
-    }
-
-    const schemaData = {
-      '@context': 'https://schema.org',
-      '@graph': [
-        {
-          '@type': 'WebApplication',
-          name: 'TridentPDF Image to Text OCR',
-          applicationCategory: 'UtilitiesApplication',
-          operatingSystem: 'Any modern web browser',
-          offers: {
-            '@type': 'Offer',
-            price: '0.00',
-            priceCurrency: 'USD',
-          },
-          description: routeConfig.metaDescription,
-        },
-        {
-          '@type': 'FAQPage',
-          mainEntity: routeConfig.faqs.map((f) => ({
-            '@type': 'Question',
-            name: f.question,
-            acceptedAnswer: {
-              '@type': 'Answer',
-              text: f.answer,
-            },
-          })),
-        },
-        {
-          '@type': 'BreadcrumbList',
-          itemListElement: [
-            {
-              '@type': 'ListItem',
-              position: 1,
-              name: 'Home',
-              item: 'https://everything-image-studio.web.app/',
-            },
-            {
-              '@type': 'ListItem',
-              position: 2,
-              name: routeConfig.h1,
-              item: routeConfig.canonicalPath,
-            },
-          ],
-        },
-      ],
-    };
-
-    schemaScript.text = JSON.stringify(schemaData);
-  }, [routeConfig]);
-
-  // Listen to popstate (back/forward button)
-  useEffect(() => {
-    const handlePopState = () => {
-      const path = window.location.pathname.toLowerCase().replace(/\/+$/, '') || '/';
-      setCurrentPath(path);
-      const cfg = getRouteConfig(path);
-      setSelectedLanguage(cfg.defaultLanguage);
-      setSelectedMode(cfg.defaultMode);
-      if (path === '/' || path in OCR_ROUTES) {
-        setActiveTab('ocr');
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
+    loadHistoryItems()
+      .then((items) => setHistoryItems(items))
+      .catch((err) => console.warn('Failed to load local history:', err));
   }, []);
 
-  // Programmatic Internal Route Navigation
-  const handleNavigateRoute = (newPath: string) => {
-    if (typeof window !== 'undefined') {
-      window.history.pushState({}, '', newPath);
-    }
-    const normalized = newPath.toLowerCase().replace(/\/+$/, '') || '/';
-    setCurrentPath(normalized);
-    const cfg = getRouteConfig(normalized);
-    setSelectedLanguage(cfg.defaultLanguage);
-    setSelectedMode(cfg.defaultMode);
-    setActiveTab('ocr');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  // Update document title for flagship Background Remover
+  useEffect(() => {
+    document.title = 'PureCut AI – Free Client-Side Background Remover | Everything Image Studio';
+  }, []);
 
-  // Handle Initializing Files
+  // Handle Initializing Files (with silent HEIC/RAW transcoding)
   const handleAddFiles = useCallback(
     async (files: File[]) => {
       try {
@@ -410,15 +242,18 @@ export function App() {
             height: newItems[0].originalHeight,
             scalePercent: 100,
           }));
+
+          showToast(`Loaded ${newItems.length} image(s)`);
         }
       } catch (err) {
         console.error('Failed to parse dropped files:', err);
+        showToast('Could not load file. Please try another image.');
       }
     },
-    [activeImageId]
+    [activeImageId, showToast]
   );
 
-  // Load Built-in Samples
+  // Load Built-in Samples for Testing
   const handleLoadSamples = useCallback(async () => {
     const samples = generateSampleImages();
     const files = samples.map(
@@ -429,14 +264,6 @@ export function App() {
 
   // Remove Single Image
   const handleRemoveImage = (id: string) => {
-    const imgToRemove = images.find((img) => img.id === id);
-    if (imgToRemove?.previewUrl) {
-      try {
-        URL.revokeObjectURL(imgToRemove.previewUrl);
-      } catch {
-        // Ignore
-      }
-    }
     setImages((prev) => {
       const filtered = prev.filter((img) => img.id !== id);
       if (activeImageId === id && filtered.length > 0) {
@@ -444,89 +271,14 @@ export function App() {
       }
       return filtered;
     });
-    setOcrResultsByImageId((prev) => {
-      const copy = { ...prev };
-      delete copy[id];
-      return copy;
-    });
-    setPreprocessedCanvasesByImageId((prev) => {
-      const copy = { ...prev };
-      delete copy[id];
-      return copy;
-    });
   };
 
   // Clear Session & Reset State
   const handleClearAll = () => {
-    currentOcrJobId.current = null;
-    images.forEach((img) => {
-      if (img.previewUrl) {
-        try {
-          URL.revokeObjectURL(img.previewUrl);
-        } catch {
-          // Ignore
-        }
-      }
-    });
-    if (processedResult?.dataUrl) {
-      try {
-        URL.revokeObjectURL(processedResult.dataUrl);
-      } catch {
-        // Ignore
-      }
-    }
     setImages([]);
     setActiveImageId('');
     setProcessedResult(null);
-    setOcrResultsByImageId({});
-    setPreprocessedCanvasesByImageId({});
-    setIsOcrProcessing(false);
-    terminateOcrWorker();
-  };
-
-  // Clear Active Image OCR Result
-  const handleClearActiveOcrResult = () => {
-    if (activeImage) {
-      setOcrResultsByImageId((prev) => {
-        const copy = { ...prev };
-        delete copy[activeImage.id];
-        return copy;
-      });
-    }
-  };
-
-  // Update Active Image OCR Result (e.g. text/table edits)
-  const handleUpdateActiveOcrResult = (updated: OcrResultData) => {
-    if (activeImage) {
-      setOcrResultsByImageId((prev) => ({
-        ...prev,
-        [activeImage.id]: updated,
-      }));
-    }
-  };
-
-  // Cancel in-flight OCR job
-  const handleCancelOcr = useCallback(() => {
-    currentOcrJobId.current = null;
-    setIsOcrProcessing(false);
-    terminateOcrWorker();
-    showToast('OCR cancelled');
-  }, []);
-
-  // Reset Adjustments
-  const handleResetAdjustments = () => {
-    setAdjustmentSettings({
-      brightness: 100,
-      contrast: 100,
-      saturation: 100,
-      blur: 0,
-      grayscale: 0,
-      sepia: 0,
-      invert: 0,
-      rotate: 0,
-      flipHorizontal: false,
-      flipVertical: false,
-    });
+    setSubjectBounds(null);
   };
 
   // Sync default dimensions for resize when active image changes
@@ -541,86 +293,12 @@ export function App() {
     }
   }, [activeImage]);
 
-  // Run OCR on demand or when active image changes in OCR tab
-  const handleRunOcr = useCallback(async () => {
-    if (!activeImage || isOcrProcessing) return;
-
-    const targetImageId = activeImage.id;
-    const jobId = Math.random().toString(36).slice(2);
-    currentOcrJobId.current = jobId;
-
-    setIsOcrProcessing(true);
-    setOcrProgress({ percent: 10, message: 'Preparing image for recognition...' });
-
-    try {
-      const imgEl = new Image();
-      imgEl.crossOrigin = 'anonymous';
-      imgEl.src = activeImage.previewUrl;
-      await new Promise((resolve, reject) => {
-        imgEl.onload = resolve;
-        imgEl.onerror = () => reject(new Error('Failed to load image for OCR processing'));
-      });
-
-      if (currentOcrJobId.current !== jobId) return;
-
-      const canvas = preprocessCanvasForOcr(imgEl, ocrPreprocessing);
-
-      if (currentOcrJobId.current !== jobId) return;
-
-      setPreprocessedCanvasesByImageId((prev) => ({
-        ...prev,
-        [targetImageId]: canvas,
-      }));
-
-      const result = await recognizeImage(canvas, {
-        language: selectedLanguage,
-        mode: selectedMode,
-        onProgress: (p) => {
-          if (currentOcrJobId.current !== jobId) return;
-          setOcrProgress({
-            percent: p.progress,
-            message: p.message,
-          });
-        },
-      });
-
-      if (currentOcrJobId.current !== jobId) return;
-
-      setOcrResultsByImageId((prev) => ({
-        ...prev,
-        [targetImageId]: result,
-      }));
-      showToast(`OCR Complete! Extracted ${result.wordsCount} words.`);
-    } catch (err: unknown) {
-      if (currentOcrJobId.current !== jobId) return;
-      const msg = err instanceof Error ? err.message : 'OCR processing failed. Please try again.';
-      console.error('OCR Error:', err);
-      showToast(msg);
-    } finally {
-      if (currentOcrJobId.current === jobId) {
-        setIsOcrProcessing(false);
-      }
-    }
-  }, [activeImage, isOcrProcessing, ocrPreprocessing, selectedLanguage, selectedMode]);
-
-  // Automatically trigger OCR when image is loaded if in OCR tab and no result yet
-  useEffect(() => {
-    if (activeTab === 'ocr' && activeImage && !ocrResult && !isOcrProcessing) {
-      const timer = setTimeout(() => {
-        handleRunOcr();
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [activeTab, activeImage, ocrResult, isOcrProcessing, handleRunOcr]);
-
-  // Run Process Pipeline on active image for non-OCR tools
+  // Run Process Pipeline on active image
   useEffect(() => {
     let isCurrent = true;
 
-    if (!activeImage || activeTab === 'ocr') {
-      if (activeTab !== 'ocr') {
-        setProcessedResult(null);
-      }
+    if (!activeImage) {
+      setProcessedResult(null);
       return;
     }
 
@@ -650,10 +328,24 @@ export function App() {
 
         if (isCurrent) {
           setProcessedResult(result);
+
           if (activeTab === 'bg-remover') {
-            const { detectSubjectBounds } = await import('./utils/backgroundRemoval');
             const bounds = await detectSubjectBounds(result.dataUrl);
             setSubjectBounds(bounds);
+
+            // Save to IndexedDB history
+            saveHistoryItem({
+              id: `${activeImage.id}-${Date.now()}`,
+              name: activeImage.name,
+              timestamp: Date.now(),
+              thumbnail: activeImage.previewUrl,
+              processedBlob: result.blob,
+              width: result.width,
+              height: result.height,
+              size: result.size,
+            })
+              .then(() => loadHistoryItems().then(setHistoryItems))
+              .catch(() => {});
           }
         }
       } catch (err) {
@@ -770,7 +462,7 @@ export function App() {
 
     window.addEventListener('paste', handlePaste);
     return () => window.removeEventListener('paste', handlePaste);
-  }, [handleAddFiles]);
+  }, [handleAddFiles, showToast]);
 
   // Window-level Drag and Drop overlay events
   useEffect(() => {
@@ -821,9 +513,9 @@ export function App() {
       window.removeEventListener('dragover', handleDragOver);
       window.removeEventListener('drop', handleDrop);
     };
-  }, [handleAddFiles]);
+  }, [handleAddFiles, showToast]);
 
-  // Start Batch Execution for non-OCR tools
+  // Start Batch Execution for background removal
   const handleStartBatch = async () => {
     if (images.length === 0) return;
 
@@ -955,8 +647,8 @@ export function App() {
         type: processedResult.format,
       });
       await navigator.share({
-        title: 'Everything Image Studio Cutout',
-        text: 'Processed 100% locally with Everything Image Studio',
+        title: 'PureCut AI Background Cutout',
+        text: 'Processed 100% locally with PureCut AI',
         files: [file],
       });
     } catch {
@@ -981,21 +673,6 @@ export function App() {
     showToast(`Loaded ${item.name} from history`);
   };
 
-  const currentToolName =
-    activeTab === 'ocr'
-      ? 'Image to Text (OCR)'
-      : activeTab === 'bg-remover'
-      ? 'Background Remover'
-      : activeTab === 'compress'
-      ? 'The Compressor'
-      : activeTab === 'convert'
-      ? 'The Converter'
-      : activeTab === 'resize'
-      ? 'The Resizer'
-      : activeTab === 'watermark'
-      ? 'The Watermarker'
-      : 'Image Enhancements';
-
   const scrollToWorkspace = () => {
     const uploader = document.getElementById('uploader-section');
     uploader?.scrollIntoView({ behavior: 'smooth' });
@@ -1011,7 +688,7 @@ export function App() {
           </div>
           <h2 className="text-3xl font-extrabold text-white mb-2">Drop images anywhere</h2>
           <p className="text-teal-200 text-sm">
-            They will be loaded instantly into TridentPDF OCR & Image Studio
+            They will be processed 100% locally with PureCut AI
           </p>
         </div>
       )}
@@ -1029,19 +706,15 @@ export function App() {
         onClearAll={handleClearAll}
         onLoadSamples={handleLoadSamples}
         onOpenBatch={() => {
-          if (activeTab === 'ocr') {
-            setIsOcrBatchOpen(true);
-          } else {
-            setIsBatchOpen(true);
-            setBatchResults([]);
-            setZipBlob(null);
-            setBatchProgress({
-              total: images.length,
-              current: 0,
-              currentFilename: '',
-              isProcessing: false,
-            });
-          }
+          setIsBatchOpen(true);
+          setBatchResults([]);
+          setZipBlob(null);
+          setBatchProgress({
+            total: images.length,
+            current: 0,
+            currentFilename: '',
+            isProcessing: false,
+          });
         }}
         historyCount={historyItems.length}
         onOpenHistory={() => setIsHistoryOpen(true)}
@@ -1058,24 +731,17 @@ export function App() {
             <DropZone
               onFilesSelected={handleAddFiles}
               onLoadSamples={handleLoadSamples}
-              h1Text={routeConfig.h1}
-              subheadingText={routeConfig.subheading}
+              h1Text="Remove Backgrounds. Keep Everything Else."
+              subheadingText="Full resolution. Unlimited. No watermark. Everything happens directly on your device."
               onOpenCamera={() => setIsCameraOpen(true)}
               activeTab={activeTab}
             />
 
-            {/* SEO Content Section for current route */}
-            {activeTab === 'ocr' ? (
-              <OcrSeoContent
-                routeConfig={routeConfig}
-                onNavigateRoute={handleNavigateRoute}
-              />
-            ) : (
-              <ContentSections
-                onScrollToUploader={scrollToWorkspace}
-                onLoadSample={handleLoadSamples}
-              />
-            )}
+            {/* PureCut AI Flagship Marketing & Trust Content */}
+            <ContentSections
+              onScrollToUploader={scrollToWorkspace}
+              onLoadSample={handleLoadSamples}
+            />
           </>
         ) : (
           /* Active Studio Workspace */
@@ -1094,18 +760,9 @@ export function App() {
 
             {/* Studio Workspace 2-Column Layout */}
             <div className="max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              {/* Left Column: Interactive Canvas / OCR Workspace */}
+              {/* Left Column: Interactive Canvas */}
               <div className="lg:col-span-7 flex flex-col h-full">
-                {activeTab === 'ocr' ? (
-                  <OcrResultWorkspace
-                    originalImage={activeImage}
-                    ocrResult={ocrResult}
-                    isProcessing={isOcrProcessing}
-                    preprocessedCanvas={preprocessedCanvas}
-                    onClearResult={handleClearActiveOcrResult}
-                    onUpdateResult={handleUpdateActiveOcrResult}
-                  />
-                ) : isProcessing && activeTab === 'bg-remover' ? (
+                {isProcessing && activeTab === 'bg-remover' ? (
                   <ProcessingOverlay
                     previewUrl={activeImage.previewUrl}
                     progress={progressState}
@@ -1130,25 +787,6 @@ export function App() {
 
               {/* Right Column: Active Tool Control Panel */}
               <div className="lg:col-span-5 p-5 sm:p-6 rounded-2xl bg-[#0E1524] border border-white/10 shadow-xl space-y-6">
-                {activeTab === 'ocr' && (
-                  <OcrTool
-                    selectedLanguage={selectedLanguage}
-                    onSelectLanguage={setSelectedLanguage}
-                    selectedMode={selectedMode}
-                    onSelectMode={setSelectedMode}
-                    preprocessing={ocrPreprocessing}
-                    onChangePreprocessing={setOcrPreprocessing}
-                    isProcessing={isOcrProcessing}
-                    progressPercent={ocrProgress.percent}
-                    progressMessage={ocrProgress.message}
-                    onRunOcr={handleRunOcr}
-                    onCancelOcr={handleCancelOcr}
-                    hasImage={!!activeImage}
-                    onOpenBatch={() => setIsOcrBatchOpen(true)}
-                    totalImagesCount={images.length}
-                  />
-                )}
-
                 {activeTab === 'bg-remover' && (
                   <BackgroundRemoverTool
                     settings={bgSettings}
@@ -1169,7 +807,11 @@ export function App() {
                     flipV={flipV}
                     onToggleFlipH={() => setFlipH((h) => !h)}
                     onToggleFlipV={() => setFlipV((v) => !v)}
-                    onReprocess={() => {}}
+                    onReprocess={() => {
+                      if (activeImage) {
+                        setIsProcessing(true);
+                      }
+                    }}
                     originalFormatExtension={activeImage?.originalFormatExtension}
                     isHeicOrRaw={activeImage?.isHeicOrRaw}
                   />
@@ -1212,46 +854,40 @@ export function App() {
                   <AdjustTool
                     settings={adjustmentSettings}
                     onChange={setAdjustmentSettings}
-                    onReset={handleResetAdjustments}
+                    onReset={() =>
+                      setAdjustmentSettings({
+                        brightness: 100,
+                        contrast: 100,
+                        saturation: 100,
+                        blur: 0,
+                        grayscale: 0,
+                        sepia: 0,
+                        invert: 0,
+                        rotate: 0,
+                        flipHorizontal: false,
+                        flipVertical: false,
+                      })
+                    }
                   />
                 )}
               </div>
             </div>
-
-            {/* Bottom Content / SEO Section */}
-            {activeTab === 'ocr' ? (
-              <OcrSeoContent
-                routeConfig={routeConfig}
-                onNavigateRoute={handleNavigateRoute}
-              />
-            ) : (
-              <ContentSections
-                onScrollToUploader={scrollToWorkspace}
-                onLoadSample={handleLoadSamples}
-              />
-            )}
           </div>
         )}
       </main>
 
-      {/* Camera Capture Modal */}
-      <CameraModal
-        isOpen={isCameraOpen}
-        onClose={() => setIsCameraOpen(false)}
-        onCapture={(file) => handleAddFiles([file])}
+      {/* Batch Export Modal */}
+      <BatchExportModal
+        isOpen={isBatchOpen}
+        onClose={() => setIsBatchOpen(false)}
+        progress={batchProgress}
+        batchResults={batchResults}
+        zipBlob={zipBlob}
+        onStartBatch={handleStartBatch}
+        toolName="PureCut AI Background Remover"
       />
 
-      {/* Batch OCR Modal */}
-      <OcrBatchModal
-        isOpen={isOcrBatchOpen}
-        onClose={() => setIsOcrBatchOpen(false)}
-        images={images}
-        selectedLanguage={selectedLanguage}
-        selectedMode={selectedMode}
-        preprocessing={ocrPreprocessing}
-      />
-
-      {/* Background Remover History Drawer */}
+      {/* History Drawer */}
       <HistoryDrawer
         isOpen={isHistoryOpen}
         onClose={() => setIsHistoryOpen(false)}
@@ -1259,7 +895,8 @@ export function App() {
         onSelectItem={handleSelectHistoryItem}
         onDeleteItem={async (id) => {
           await deleteHistoryItem(id);
-          loadHistoryItems().then(setHistoryItems);
+          const updated = await loadHistoryItems();
+          setHistoryItems(updated);
         }}
         onClearAll={async () => {
           await clearAllHistory();
@@ -1273,31 +910,19 @@ export function App() {
         onClose={() => setIsShortcutsOpen(false)}
       />
 
-      {/* Batch Export Modal for Other Tools */}
-      <BatchExportModal
-        isOpen={isBatchOpen}
-        onClose={() => setIsBatchOpen(false)}
-        progress={batchProgress}
-        batchResults={batchResults}
-        zipBlob={zipBlob}
-        onStartBatch={handleStartBatch}
-        toolName={currentToolName}
+      {/* Camera Capture Modal */}
+      <CameraModal
+        isOpen={isCameraOpen}
+        onClose={() => setIsCameraOpen(false)}
+        onCapture={async (blob) => {
+          const file = new File([blob], `capture-${Date.now()}.png`, { type: 'image/png' });
+          await handleAddFiles([file]);
+          setIsCameraOpen(false);
+        }}
       />
 
       {/* Footer */}
-      <Footer
-        onSelectTool={(tool) => {
-          setActiveTab(tool as ToolTab);
-          scrollToWorkspace();
-        }}
-        onScrollToFaq={() => {
-          const faq = document.querySelector('details');
-          faq?.scrollIntoView({ behavior: 'smooth' });
-        }}
-        onNavigateRoute={handleNavigateRoute}
-      />
+      <Footer />
     </div>
   );
 }
-
-export default App;

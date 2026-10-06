@@ -6,7 +6,6 @@ import {
   ShieldCheck,
   Camera,
   ArrowRight,
-  FileText,
 } from 'lucide-react';
 
 interface DropZoneProps {
@@ -23,8 +22,8 @@ export const DropZone: React.FC<DropZoneProps> = ({
   onFilesSelected,
   onLoadSamples,
   compact = false,
-  h1Text = 'Image to Text Converter – Free Online OCR',
-  subheadingText = 'Extract text from images directly in your browser. Free, unlimited, completely private, with no file uploads and no watermarks.',
+  h1Text = 'Remove Backgrounds. Keep Everything Else.',
+  subheadingText = 'Full resolution. Unlimited. No watermark. Everything happens directly on your device.',
   onOpenCamera,
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -125,7 +124,7 @@ export const DropZone: React.FC<DropZoneProps> = ({
             ✓ 100% Browser Processing
           </span>
           <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300">
-            ✓ No OCR Upload
+            ✓ Zero Server Upload
           </span>
           <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-slate-300">
             ✓ Free & Unlimited

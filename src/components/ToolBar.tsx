@@ -1,5 +1,4 @@
-import React from 'react';
-import { FileText, Scissors, Minimize2, RefreshCw, Maximize2, Type, Sliders } from 'lucide-react';
+import { Scissors, Minimize2, RefreshCw, Maximize2, Type, Sliders } from 'lucide-react';
 import type { ToolTab } from '../types';
 
 interface ToolBarProps {
@@ -15,15 +14,10 @@ export const ToolBar: React.FC<ToolBarProps> = ({ activeTab, onSelectTab }) => {
     isFlagship?: boolean;
   }> = [
     {
-      id: 'ocr',
-      label: 'Image to Text (OCR)',
-      icon: FileText,
-      isFlagship: true,
-    },
-    {
       id: 'bg-remover',
       label: 'Background Remover',
       icon: Scissors,
+      isFlagship: true,
     },
     {
       id: 'compress',

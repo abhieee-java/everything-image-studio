@@ -1,8 +1,6 @@
 export type ImageFormat = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/avif';
 
-export type ToolTab = 'ocr' | 'bg-remover' | 'compress' | 'convert' | 'resize' | 'watermark' | 'adjust';
-
-export * from './ocr';
+export type ToolTab = 'bg-remover' | 'compress' | 'convert' | 'resize' | 'watermark' | 'adjust';
 
 export type SmartMode = 'auto' | 'portrait' | 'product' | 'hair-fur';
 
